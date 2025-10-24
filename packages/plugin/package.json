@@ -1,0 +1,43 @@
+{
+  "name": "@soliditygpt/hardhat-plugin",
+  "version": "0.1.0",
+  "description": "AI-powered test generator for Hardhat 3",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "dev": "tsc --build --watch",
+    "test": "echo \"Tests coming soon\""
+  },
+  "keywords": [
+    "hardhat",
+    "hardhat-plugin",
+    "solidity",
+    "testing",
+    "ai",
+    "gpt",
+    "claude"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "hardhat": "^3.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.0",
+    "@solidity-parser/parser": "^0.18.0",
+    "openai": "^4.0.0",
+    "ora": "^7.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "hardhat": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

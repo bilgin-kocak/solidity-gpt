@@ -1,0 +1,19 @@
+{
+  "name": "soliditygpt-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-Powered Test Generator for Hardhat 3",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "clean": "pnpm -r clean",
+    "dev": "pnpm -r --parallel dev"
+  },
+  "keywords": ["hardhat", "hardhat-plugin", "solidity", "testing", "ai", "gpt"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
