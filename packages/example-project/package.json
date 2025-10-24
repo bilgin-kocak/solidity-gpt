@@ -1,0 +1,17 @@
+{
+  "name": "@soliditygpt/example-project",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Example Hardhat 3 project for testing SolidityGPT plugin",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "clean": "rm -rf artifacts cache typechain-types"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@soliditygpt/hardhat-plugin": "workspace:*",
+    "hardhat": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}
