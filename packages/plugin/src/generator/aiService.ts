@@ -5,7 +5,16 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 
-export type AIModel = "gpt-4o" | "claude-sonnet-4";
+export type AIModel =
+  | "gpt-5"                              // GPT-5 (latest)
+  | "gpt-5-2025-08-07"                   // GPT-5 dated version
+  | "gpt-5-codex"                        // GPT-5 optimized for coding
+  | "gpt-4o"                             // GPT-4o (fallback)
+  | "gpt-4o-2024-11-20"                  // GPT-4o dated
+  | "claude-sonnet-4-5-20250929"         // Claude Sonnet 4.5 (LATEST - Sept 2025)
+  | "claude-sonnet-4-5-20250929-thinking" // Claude Sonnet 4.5 with extended thinking
+  | "claude-sonnet-4"                    // Claude Sonnet 4
+  | "claude-3-5-sonnet-20241022";        // Claude 3.5 Sonnet (older)
 
 export interface AIServiceConfig {
   openaiApiKey?: string;
@@ -23,9 +32,9 @@ export class AIService {
   private maxTokens: number;
 
   constructor(config: AIServiceConfig) {
-    this.model = config.model || "claude-sonnet-4";
+    this.model = config.model || "claude-sonnet-4-5-20250929"; // Default to Claude Sonnet 4.5 (latest)
     this.temperature = config.temperature || 0.1;
-    this.maxTokens = config.maxTokens || 4000;
+    this.maxTokens = config.maxTokens || 8000;
 
     // Initialize OpenAI if key is provided
     if (config.openaiApiKey) {
@@ -55,24 +64,28 @@ export class AIService {
   async generate(prompt: string, preferredModel?: AIModel): Promise<string> {
     const model = preferredModel || this.model;
 
+    // Determine if model is Claude or GPT
+    const isClaudeModel = model.startsWith("claude-");
+    const isGPTModel = model.startsWith("gpt-");
+
     // Try the preferred model first
     try {
-      if (model === "claude-sonnet-4" && this.anthropic) {
-        return await this.generateWithClaude(prompt);
-      } else if (model === "gpt-4o" && this.openai) {
-        return await this.generateWithGPT(prompt);
+      if (isClaudeModel && this.anthropic) {
+        return await this.generateWithClaude(prompt, model);
+      } else if (isGPTModel && this.openai) {
+        return await this.generateWithGPT(prompt, model);
       }
     } catch (error) {
       console.warn(`Failed with ${model}, trying fallback...`);
     }
 
     // Fallback to the other provider if available
-    if (model === "claude-sonnet-4" && this.openai) {
-      console.log("Falling back to GPT-4o...");
-      return await this.generateWithGPT(prompt);
-    } else if (model === "gpt-4o" && this.anthropic) {
-      console.log("Falling back to Claude...");
-      return await this.generateWithClaude(prompt);
+    if (isClaudeModel && this.openai) {
+      console.log("Falling back to GPT-5...");
+      return await this.generateWithGPT(prompt, "gpt-5-2025-08-07");
+    } else if (isGPTModel && this.anthropic) {
+      console.log("Falling back to Claude Sonnet 4.5...");
+      return await this.generateWithClaude(prompt, "claude-sonnet-4-5-20250929");
     }
 
     throw new Error("All AI providers failed or are not configured");
@@ -81,14 +94,24 @@ export class AIService {
   /**
    * Generate with Claude (Anthropic)
    */
-  private async generateWithClaude(prompt: string): Promise<string> {
+  private async generateWithClaude(prompt: string, modelType?: AIModel): Promise<string> {
     if (!this.anthropic) {
       throw new Error("Anthropic API not configured");
     }
 
+    // Map our model types to Anthropic model IDs
+    let modelId: string;
+    if (modelType === "claude-sonnet-4-5-20250929" || modelType === "claude-sonnet-4-5-20250929-thinking") {
+      modelId = modelType; // Claude Sonnet 4.5 uses exact model ID
+    } else if (modelType === "claude-3-5-sonnet-20241022") {
+      modelId = "claude-3-5-sonnet-20241022"; // Claude 3.5 Sonnet
+    } else {
+      modelId = "claude-sonnet-4-20250514"; // Claude Sonnet 4 (fallback)
+    }
+
     return this.retryWithBackoff(async () => {
       const response = await this.anthropic!.messages.create({
-        model: "claude-sonnet-4-20250514",
+        model: modelId,
         max_tokens: this.maxTokens,
         temperature: this.temperature,
         messages: [
@@ -105,22 +128,41 @@ export class AIService {
       }
 
       throw new Error("Unexpected response format from Claude");
-    }, "Claude");
+    }, `Claude (${modelId})`);
   }
 
   /**
-   * Generate with GPT-4o (OpenAI)
+   * Generate with GPT (OpenAI)
    */
-  private async generateWithGPT(prompt: string): Promise<string> {
+  private async generateWithGPT(prompt: string, modelType?: AIModel): Promise<string> {
     if (!this.openai) {
       throw new Error("OpenAI API not configured");
     }
 
+    // Map our model types to OpenAI model IDs
+    let modelId: string;
+    if (modelType === "gpt-5" || modelType === "gpt-5-2025-08-07") {
+      modelId = modelType === "gpt-5-2025-08-07" ? "gpt-5-2025-08-07" : "gpt-5";
+    } else if (modelType === "gpt-5-codex") {
+      modelId = "gpt-5-codex"; // GPT-5 optimized for coding
+    } else if (modelType === "gpt-4o-2024-11-20") {
+      modelId = "gpt-4o-2024-11-20";
+    } else {
+      modelId = "gpt-4o"; // Default fallback
+    }
+
     return this.retryWithBackoff(async () => {
+      // GPT-5 has different API parameters:
+      // - Uses max_completion_tokens instead of max_tokens
+      // - Only supports temperature=1 (default)
+      const isGPT5 = modelId.startsWith("gpt-5");
+      const tokenParam = isGPT5 ? { max_completion_tokens: this.maxTokens } : { max_tokens: this.maxTokens };
+      const temperatureParam = isGPT5 ? {} : { temperature: this.temperature }; // GPT-5 only supports default temperature
+
       const response = await this.openai!.chat.completions.create({
-        model: "gpt-4o",
-        temperature: this.temperature,
-        max_tokens: this.maxTokens,
+        model: modelId,
+        ...temperatureParam,
+        ...tokenParam,
         messages: [
           {
             role: "system",
@@ -136,11 +178,11 @@ export class AIService {
 
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error("Empty response from GPT-4o");
+        throw new Error("Empty response from GPT");
       }
 
       return this.extractCode(content);
-    }, "GPT-4o");
+    }, `GPT (${modelId})`);
   }
 
   /**

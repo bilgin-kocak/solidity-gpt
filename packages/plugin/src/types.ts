@@ -5,7 +5,15 @@
 export interface SolidityGPTConfig {
   apiKey?: string;
   anthropicApiKey?: string;
-  model?: "gpt-4o" | "claude-sonnet-4";
+  model?:
+    | "gpt-5"                              // GPT-5 (latest)
+    | "gpt-5-2025-08-07"                   // GPT-5 dated version
+    | "gpt-5-codex"                        // GPT-5 for coding
+    | "gpt-4o"                             // GPT-4o
+    | "claude-sonnet-4-5-20250929"         // Claude Sonnet 4.5 (LATEST)
+    | "claude-sonnet-4-5-20250929-thinking" // Claude Sonnet 4.5 with thinking
+    | "claude-sonnet-4"                    // Claude Sonnet 4
+    | "claude-3-5-sonnet-20241022";        // Claude 3.5 Sonnet
   testFormat?: "typescript" | "solidity";
   temperature?: number;
   maxTokens?: number;
