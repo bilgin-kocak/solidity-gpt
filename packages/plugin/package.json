@@ -10,6 +10,46 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./validators/testValidator": {
+      "types": "./dist/validators/testValidator.d.ts",
+      "import": "./dist/validators/testValidator.js",
+      "default": "./dist/validators/testValidator.js"
+    },
+    "./utils/compiler": {
+      "types": "./dist/utils/compiler.d.ts",
+      "import": "./dist/utils/compiler.js",
+      "default": "./dist/utils/compiler.js"
+    },
+    "./generator/refiner": {
+      "types": "./dist/generator/refiner.d.ts",
+      "import": "./dist/generator/refiner.js",
+      "default": "./dist/generator/refiner.js"
+    },
+    "./generator/parser": {
+      "types": "./dist/generator/parser.d.ts",
+      "import": "./dist/generator/parser.js",
+      "default": "./dist/generator/parser.js"
+    },
+    "./generator/analyzer": {
+      "types": "./dist/generator/analyzer.d.ts",
+      "import": "./dist/generator/analyzer.js",
+      "default": "./dist/generator/analyzer.js"
+    },
+    "./generator/promptBuilder": {
+      "types": "./dist/generator/promptBuilder.d.ts",
+      "import": "./dist/generator/promptBuilder.js",
+      "default": "./dist/generator/promptBuilder.js"
+    },
+    "./generator/aiService": {
+      "types": "./dist/generator/aiService.d.ts",
+      "import": "./dist/generator/aiService.js",
+      "default": "./dist/generator/aiService.js"
+    },
+    "./generator/writer": {
+      "types": "./dist/generator/writer.d.ts",
+      "import": "./dist/generator/writer.js",
+      "default": "./dist/generator/writer.js"
     }
   },
   "scripts": {

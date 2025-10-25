@@ -14,5 +14,8 @@
     "@soliditygpt/hardhat-plugin": "workspace:*",
     "hardhat": "^3.0.0",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
   }
 }
