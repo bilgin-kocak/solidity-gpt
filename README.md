@@ -8,6 +8,9 @@
 - ✅ **Multiple Test Formats**: Generate both Solidity (.t.sol) and TypeScript tests
 - ✅ **Security Analysis**: Detects reentrancy, access control, and other vulnerabilities
 - ✅ **Edge Case Detection**: Automatically tests boundary conditions
+- ✅ **Test Validation**: Comprehensive syntax and structure validation
+- ✅ **Quality Scoring**: Rates test quality (0-100) with actionable feedback
+- ✅ **Iterative Refinement**: Auto-fixes compilation and test failures (--refine flag)
 - ✅ **Hardhat 3 Native**: Built specifically for Hardhat 3's plugin system
 - ✅ **Smart Retry Logic**: Handles API failures with exponential backoff
 - ✅ **Beautiful CLI**: Progress indicators and colored output
@@ -101,6 +104,9 @@ npx hardhat generate-tests --format typescript
 # Include security-focused tests
 npx hardhat generate-tests --security
 
+# Enable iterative refinement (auto-fix compilation/test errors)
+npx hardhat generate-tests --refine --security
+
 # Run coverage after generation
 npx hardhat generate-tests --coverage
 ```
@@ -184,6 +190,9 @@ SolidityGPT generates:
 - ✅ Revert/error condition tests
 - ✅ Fuzz tests for numeric parameters (Solidity format)
 - ✅ Clear, documented test code
+- ✅ Validated for syntax and structure
+- ✅ Quality scored (0-100) with improvement suggestions
+- ✅ Auto-fixed compilation/test errors (with --refine)
 
 ## 🔒 Security
 
@@ -256,7 +265,9 @@ Contributions welcome! This project was built for a hackathon but is designed fo
 
 ## 🎯 Roadmap
 
-- [ ] Iterative refinement (test → compile → fix)
+- [x] Test validation and quality scoring
+- [x] Iterative refinement (test → compile → fix)
+- [x] Multiple example contracts (Token, NFT, DeFi, MultiSig)
 - [ ] Coverage-driven test improvement
 - [ ] Invariant test generation
 - [ ] Multi-contract integration tests
