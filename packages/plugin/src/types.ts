@@ -97,4 +97,5 @@ export interface GenerateTestsOptions {
   format: "typescript" | "solidity";
   security: boolean;
   coverage?: boolean;
+  refine?: boolean;
 }
