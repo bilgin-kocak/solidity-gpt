@@ -20,7 +20,7 @@ export class ContractParser {
   /**
    * Parse a Solidity contract source code
    */
-  parse(source: string): parser.ASTNode {
+  parse(source: string): any {
     try {
       return parser.parse(source, {
         loc: true,
@@ -40,7 +40,7 @@ export class ContractParser {
   /**
    * Extract comprehensive contract information from AST
    */
-  extractInfo(ast: parser.ASTNode, source: string): ContractInfo {
+  extractInfo(ast: any, source: string): ContractInfo {
     const info: ContractInfo = {
       functions: [],
       stateVariables: [],
@@ -188,7 +188,7 @@ export class ContractParser {
   /**
    * Get contract name from source code
    */
-  getContractName(ast: parser.ASTNode): string | null {
+  getContractName(ast: any): string | null {
     let contractName: string | null = null;
 
     parser.visit(ast, {

@@ -9,7 +9,7 @@ export class SecurityAnalyzer {
   /**
    * Analyze contract for security patterns
    */
-  analyze(ast: parser.ASTNode): SecurityAnalysis {
+  analyze(ast: any): SecurityAnalysis {
     const analysis: SecurityAnalysis = {
       reentrancyRisk: [],
       accessControl: [],
@@ -18,7 +18,7 @@ export class SecurityAnalyzer {
       uncheckedCalls: [],
     };
 
-    let currentFunction: string | null = null;
+    let currentFunction: string = "unknown";
 
     parser.visit(ast, {
       FunctionDefinition: (node: any) => {
@@ -67,12 +67,10 @@ export class SecurityAnalyzer {
         // Track external calls
         if (node.expression?.type === "MemberAccess") {
           const target = node.expression?.expression?.name || "external";
-          if (currentFunction) {
-            analysis.externalCalls.push({
-              function: currentFunction,
-              target,
-            });
-          }
+          analysis.externalCalls.push({
+            function: currentFunction,
+            target,
+          });
         }
       },
 

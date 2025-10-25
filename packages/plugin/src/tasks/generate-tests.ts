@@ -8,9 +8,13 @@ import { SecurityAnalyzer } from "../generator/analyzer.js";
 import { PromptBuilder } from "../generator/promptBuilder.js";
 import { AIService } from "../generator/aiService.js";
 import { TestWriter } from "../generator/writer.js";
+import { TestValidator } from "../validators/testValidator.js";
+import { TestRefiner } from "../generator/refiner.js";
+import { CompilerHelper } from "../utils/compiler.js";
 import ora from "ora";
-import type { HardhatRuntimeEnvironment } from "hardhat/types";
 import type { GenerateTestsOptions } from "../types.js";
+
+type HardhatRuntimeEnvironment = any;
 
 task("generate-tests", "Generate AI-powered tests for Solidity contracts")
   .addOptionalParam("contract", "Specific contract name to generate tests for")
@@ -21,6 +25,7 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
   )
   .addFlag("security", "Include security-focused tests")
   .addFlag("coverage", "Run coverage after generation")
+  .addFlag("refine", "Enable iterative refinement (compile, test, fix)")
   .setAction(async (taskArgs: GenerateTestsOptions, hre: HardhatRuntimeEnvironment) => {
     const spinner = ora("Initializing SolidityGPT...").start();
 
@@ -37,6 +42,7 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
       const analyzer = new SecurityAnalyzer();
       const promptBuilder = new PromptBuilder();
       const writer = new TestWriter();
+      const validator = new TestValidator();
 
       // Initialize AI service with config
       const config = hre.config.solidityGPT || {};
@@ -47,6 +53,14 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
         temperature: config.temperature,
         maxTokens: config.maxTokens,
       });
+
+      // Initialize refiner if requested
+      let refiner: TestRefiner | null = null;
+      let compiler: CompilerHelper | null = null;
+      if (taskArgs.refine) {
+        compiler = new CompilerHelper(hre);
+        refiner = new TestRefiner(aiService, compiler, writer, validator);
+      }
 
       spinner.succeed("SolidityGPT initialized");
       spinner.start("Reading contracts...");
@@ -107,20 +121,81 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
 
           // Generate tests with AI
           spinner.text = `Generating tests for ${contract.name} (this may take 30-60s)...`;
-          const tests = await aiService.generate(prompt);
+          let tests = await aiService.generate(prompt);
 
-          // Write test file
-          spinner.text = `Writing test file for ${contract.name}...`;
-          const testPath = await writer.writeTest(
-            hre.config.paths.tests,
-            contract.name,
-            tests,
-            taskArgs.format
-          );
+          // Validate generated tests
+          spinner.text = `Validating tests for ${contract.name}...`;
+          const validation = validator.validate(tests, taskArgs.format);
 
-          spinner.succeed(
-            `✓ Generated tests for ${contract.name} → ${testPath}`
-          );
+          if (!validation.valid) {
+            spinner.warn(
+              `Validation warnings for ${contract.name}:`
+            );
+            validation.errors.forEach((err) => console.log(`  ⚠️  ${err}`));
+
+            // If refine is enabled, this will be fixed during refinement
+            if (!taskArgs.refine) {
+              console.log(
+                "  💡 Tip: Use --refine flag to automatically fix validation issues"
+              );
+            }
+          }
+
+          // Check test quality
+          const quality = validator.validateTestQuality(tests, taskArgs.format);
+          if (quality.score < 80 && quality.feedback.length > 0) {
+            console.log(`  📊 Test quality score: ${quality.score}/100`);
+            quality.feedback.forEach((feedback) =>
+              console.log(`  💡 ${feedback}`)
+            );
+          }
+
+          let testPath: string;
+
+          // Use iterative refinement if enabled
+          if (taskArgs.refine && refiner) {
+            spinner.text = `Refining tests for ${contract.name}...`;
+            console.log(""); // New line for refinement output
+
+            const refinementResult = await refiner.refine(
+              tests,
+              contract.source,
+              hre.config.paths.tests,
+              contract.name,
+              taskArgs.format
+            );
+
+            tests = refinementResult.finalCode;
+
+            if (refinementResult.success) {
+              spinner.succeed(
+                `✓ Generated and refined tests for ${contract.name} (${refinementResult.iterations} iterations)`
+              );
+            } else {
+              spinner.warn(
+                `Tests generated for ${contract.name} but refinement incomplete`
+              );
+              console.log(
+                `  Used ${refinementResult.iterations} iterations, some issues may remain`
+              );
+            }
+
+            // Test path was already created by refiner
+            testPath = `${hre.config.paths.tests}/${contract.name}${taskArgs.format === "solidity" ? ".t.sol" : ".test.ts"}`;
+          } else {
+            // Write test file without refinement
+            spinner.text = `Writing test file for ${contract.name}...`;
+            testPath = await writer.writeTest(
+              hre.config.paths.tests,
+              contract.name,
+              tests,
+              taskArgs.format
+            );
+
+            spinner.succeed(
+              `✓ Generated tests for ${contract.name} → ${testPath}`
+            );
+          }
 
           // Show summary
           console.log(`  Functions tested: ${info.functions.length}`);
@@ -133,6 +208,9 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
             console.log(
               `  Access control functions: ${security.accessControl.length}`
             );
+          }
+          if (quality.score >= 80) {
+            console.log(`  ✨ Quality score: ${quality.score}/100`);
           }
         } catch (error: any) {
           spinner.fail(`Failed to generate tests for ${contract.name}`);
