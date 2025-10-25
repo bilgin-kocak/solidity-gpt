@@ -52,7 +52,7 @@ contract StakingPool {
         emit Staked(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) external updateReward(msg.sender) {
+    function withdraw(uint256 amount) public updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         require(balanceOf[msg.sender] >= amount, "Insufficient balance");
 
@@ -66,7 +66,7 @@ contract StakingPool {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function getReward() external updateReward(msg.sender) {
+    function getReward() public updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         require(reward > 0, "No rewards available");
 
