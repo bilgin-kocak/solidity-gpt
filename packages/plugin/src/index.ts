@@ -17,6 +17,8 @@ import { PromptBuilder } from "./generator/promptBuilder.js";
 import { AIService } from "./generator/aiService.js";
 import { TestWriter } from "./generator/writer.js";
 
+console.log("📦 SolidityGPT plugin module loaded");
+
 // Hardhat 3 Plugin Export with Hook-based Architecture
 const solidityGPTPlugin = {
   id: "@soliditygpt/hardhat-plugin",
@@ -29,15 +31,24 @@ const solidityGPTPlugin = {
         context: HookContext,
         hre: HardhatRuntimeEnvironment
       ): Promise<void> => {
-        // Initialize all Phase 2 services
+        console.log("🔧 SolidityGPT: hre.created hook called");
+        // Initialize all Phase 2 services in correct order
         const validator = new TestValidator();
         const compilerHelper = new CompilerHelper(hre as any);
-        const refiner = new TestRefiner(hre as any);
+        const writer = new TestWriter();
+        const aiService = new AIService(hre as any);
+
+        // TestRefiner needs aiService, compiler, writer, validator
+        const refiner = new TestRefiner(
+          aiService,
+          compilerHelper,
+          writer,
+          validator
+        );
+
         const parser = new ContractParser();
         const analyzer = new SecurityAnalyzer();
         const promptBuilder = new PromptBuilder();
-        const aiService = new AIService(hre as any);
-        const writer = new TestWriter();
 
         // Extend HRE with SolidityGPT services
         (hre as any).solidityGPT = {
@@ -108,16 +119,16 @@ const solidityGPTPlugin = {
         config: HardhatUserConfig,
         next: (c: HardhatUserConfig) => Promise<HardhatUserConfig>
       ): Promise<HardhatUserConfig> => {
-        const extended = {
+        const extended: HardhatUserConfig = {
           ...config,
           solidityGPT: {
             // Default values
-            model: "gpt-4",
-            testFormat: "solidity",
+            model: "gpt-4" as any,
+            testFormat: "solidity" as any,
             temperature: 0.1,
             maxTokens: 4000,
             // Merge with user config
-            ...config.solidityGPT,
+            ...(config.solidityGPT || {}),
           },
         };
 
