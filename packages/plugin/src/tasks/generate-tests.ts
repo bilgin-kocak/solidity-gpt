@@ -12,9 +12,20 @@ import { TestValidator } from "../validators/testValidator.js";
 import { TestRefiner } from "../generator/refiner.js";
 import { CompilerHelper } from "../utils/compiler.js";
 import ora from "ora";
+import chalk from "chalk";
 import type { GenerateTestsOptions } from "../types.js";
 
 type HardhatRuntimeEnvironment = any;
+
+interface ContractStats {
+  name: string;
+  functionCount: number;
+  testPath: string;
+  qualityScore: number;
+  securityIssues: number;
+  iterations?: number;
+  success: boolean;
+}
 
 task("generate-tests", "Generate AI-powered tests for Solidity contracts")
   .addOptionalParam("contract", "Specific contract name to generate tests for")
@@ -27,6 +38,12 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
   .addFlag("coverage", "Run coverage after generation")
   .addFlag("refine", "Enable iterative refinement (compile, test, fix)")
   .setAction(async (taskArgs: GenerateTestsOptions, hre: HardhatRuntimeEnvironment) => {
+    const startTime = Date.now();
+    const contractStats: ContractStats[] = [];
+
+    console.log(chalk.bold.cyan("\n🤖 SolidityGPT - AI-Powered Test Generator"));
+    console.log(chalk.gray("=" .repeat(60)) + "\n");
+
     const spinner = ora("Initializing SolidityGPT...").start();
 
     try {
@@ -84,9 +101,8 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
         return;
       }
 
-      spinner.succeed(
-        `Found ${targetContracts.length} contract(s) to process`
-      );
+      spinner.succeed(chalk.green(`Found ${targetContracts.length} contract(s) to process`));
+      console.log();
 
       // Process each contract
       for (const contract of targetContracts) {
@@ -111,13 +127,15 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
 
           // Build prompt
           spinner.text = `Building prompt for ${contract.name}...`;
-          const prompt = promptBuilder.build({
-            contract: contract.source,
-            functions: info.functions,
-            security: security,
-            format: taskArgs.format,
-            includeSecurity: taskArgs.security,
-          });
+          const prompt = promptBuilder.build(
+            contract.source,
+            info,
+            security,
+            {
+              security: taskArgs.security,
+              format: taskArgs.format,
+            }
+          );
 
           // Generate tests with AI
           spinner.text = `Generating tests for ${contract.name} (this may take 30-60s)...`;
@@ -128,25 +146,21 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
           const validation = validator.validate(tests, taskArgs.format);
 
           if (!validation.valid) {
-            spinner.warn(
-              `Validation warnings for ${contract.name}:`
-            );
-            validation.errors.forEach((err) => console.log(`  ⚠️  ${err}`));
+            spinner.warn(chalk.yellow(`Validation warnings for ${contract.name}:`));
+            validation.errors.forEach((err) => console.log(chalk.yellow(`  ⚠️  ${err}`)));
 
             // If refine is enabled, this will be fixed during refinement
             if (!taskArgs.refine) {
-              console.log(
-                "  💡 Tip: Use --refine flag to automatically fix validation issues"
-              );
+              console.log(chalk.cyan("  💡 Tip: Use --refine flag to automatically fix validation issues"));
             }
           }
 
           // Check test quality
           const quality = validator.validateTestQuality(tests, taskArgs.format);
           if (quality.score < 80 && quality.feedback.length > 0) {
-            console.log(`  📊 Test quality score: ${quality.score}/100`);
+            console.log(chalk.blue(`  📊 Test quality score: ${quality.score}/100`));
             quality.feedback.forEach((feedback) =>
-              console.log(`  💡 ${feedback}`)
+              console.log(chalk.cyan(`  💡 ${feedback}`))
             );
           }
 
@@ -169,19 +183,30 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
 
             if (refinementResult.success) {
               spinner.succeed(
-                `✓ Generated and refined tests for ${contract.name} (${refinementResult.iterations} iterations)`
+                chalk.green(`✓ Generated and refined tests for ${contract.name} (${refinementResult.iterations.length} iterations)`)
               );
             } else {
               spinner.warn(
-                `Tests generated for ${contract.name} but refinement incomplete`
+                chalk.yellow(`Tests generated for ${contract.name} but refinement incomplete`)
               );
               console.log(
-                `  Used ${refinementResult.iterations} iterations, some issues may remain`
+                chalk.yellow(`  Used ${refinementResult.iterations.length} iterations, some issues may remain`)
               );
             }
 
             // Test path was already created by refiner
             testPath = `${hre.config.paths.tests}/${contract.name}${taskArgs.format === "solidity" ? ".t.sol" : ".test.ts"}`;
+
+            // Track stats
+            contractStats.push({
+              name: contract.name,
+              functionCount: info.functions.length,
+              testPath,
+              qualityScore: quality.score,
+              securityIssues: (security.reentrancyRisk?.length || 0) + (security.accessControl?.length || 0),
+              iterations: refinementResult.iterations.length,
+              success: refinementResult.success
+            });
           } else {
             // Write test file without refinement
             spinner.text = `Writing test file for ${contract.name}...`;
@@ -193,50 +218,108 @@ task("generate-tests", "Generate AI-powered tests for Solidity contracts")
             );
 
             spinner.succeed(
-              `✓ Generated tests for ${contract.name} → ${testPath}`
+              chalk.green(`✓ Generated tests for ${contract.name} → ${chalk.gray(testPath)}`)
             );
+
+            // Track stats
+            contractStats.push({
+              name: contract.name,
+              functionCount: info.functions.length,
+              testPath,
+              qualityScore: quality.score,
+              securityIssues: (security.reentrancyRisk?.length || 0) + (security.accessControl?.length || 0),
+              success: true
+            });
           }
 
           // Show summary
-          console.log(`  Functions tested: ${info.functions.length}`);
+          console.log(chalk.gray(`  Functions tested: ${info.functions.length}`));
           if (taskArgs.security && security.reentrancyRisk.length > 0) {
             console.log(
-              `  Reentrancy risks identified: ${security.reentrancyRisk.length}`
+              chalk.yellow(`  ⚠️  Reentrancy risks identified: ${security.reentrancyRisk.length}`)
             );
           }
           if (taskArgs.security && security.accessControl.length > 0) {
             console.log(
-              `  Access control functions: ${security.accessControl.length}`
+              chalk.blue(`  🔒 Access control functions: ${security.accessControl.length}`)
             );
           }
           if (quality.score >= 80) {
-            console.log(`  ✨ Quality score: ${quality.score}/100`);
+            console.log(chalk.green(`  ✨ Quality score: ${quality.score}/100`));
           }
+          console.log(); // Add spacing between contracts
         } catch (error: any) {
-          spinner.fail(`Failed to generate tests for ${contract.name}`);
-          console.error(`  Error: ${error.message}`);
+          spinner.fail(chalk.red(`Failed to generate tests for ${contract.name}`));
+          console.error(chalk.red(`  Error: ${error.message}`));
+
+          // Track failed contract
+          contractStats.push({
+            name: contract.name,
+            functionCount: 0,
+            testPath: "",
+            qualityScore: 0,
+            securityIssues: 0,
+            success: false
+          });
+          console.log();
           continue;
         }
       }
 
-      spinner.succeed("Test generation complete!");
+      spinner.succeed(chalk.green.bold("Test generation complete!"));
 
       // Run coverage if requested
       if (taskArgs.coverage) {
+        console.log();
         spinner.start("Running coverage...");
         try {
           await hre.run("test", { coverage: true });
-          spinner.succeed("Coverage analysis complete");
+          spinner.succeed(chalk.green("Coverage analysis complete"));
         } catch (error: any) {
-          spinner.fail("Coverage analysis failed");
-          console.error(`  Error: ${error.message}`);
+          spinner.fail(chalk.red("Coverage analysis failed"));
+          console.error(chalk.red(`  Error: ${error.message}`));
         }
       }
 
-      console.log("\n✨ All done! Run 'npx hardhat test' to execute the tests.");
+      // Print summary statistics
+      const endTime = Date.now();
+      const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+      const successCount = contractStats.filter(s => s.success).length;
+      const failCount = contractStats.length - successCount;
+      const totalFunctions = contractStats.reduce((sum, s) => sum + s.functionCount, 0);
+      const avgQuality = contractStats.length > 0
+        ? (contractStats.reduce((sum, s) => sum + s.qualityScore, 0) / contractStats.length).toFixed(1)
+        : 0;
+      const totalSecurityIssues = contractStats.reduce((sum, s) => sum + s.securityIssues, 0);
+
+      console.log("\n" + chalk.bold.cyan("=" .repeat(60)));
+      console.log(chalk.bold.cyan("📊 Summary"));
+      console.log(chalk.bold.cyan("=" .repeat(60)));
+      console.log(chalk.gray(`  Time taken:          ${chalk.white(totalTime + 's')}`));
+      console.log(chalk.gray(`  Contracts processed: ${chalk.white(contractStats.length)}`));
+      console.log(chalk.green(`  ✓ Successful:        ${chalk.white(successCount)}`));
+      if (failCount > 0) {
+        console.log(chalk.red(`  ✗ Failed:            ${chalk.white(failCount)}`));
+      }
+      console.log(chalk.gray(`  Total functions:     ${chalk.white(totalFunctions)}`));
+      console.log(chalk.gray(`  Avg quality score:   ${chalk.white(avgQuality + '/100')}`));
+      if (totalSecurityIssues > 0) {
+        console.log(chalk.yellow(`  Security issues:     ${chalk.white(totalSecurityIssues)}`));
+      }
+
+      if (successCount > 0) {
+        console.log("\n" + chalk.bold.green("  Generated test files:"));
+        contractStats.filter(s => s.success).forEach(stat => {
+          console.log(chalk.gray(`    • ${stat.name} → ${chalk.white(stat.testPath)}`));
+        });
+      }
+
+      console.log(chalk.bold.cyan("\n=" .repeat(60)));
+      console.log(chalk.green.bold("\n✨ All done! ") + chalk.gray("Run ") + chalk.cyan("'npx hardhat test'") + chalk.gray(" to execute the tests."));
+      console.log();
     } catch (error: any) {
-      spinner.fail("Test generation failed");
-      console.error(`Error: ${error.message}`);
+      spinner.fail(chalk.red.bold("Test generation failed"));
+      console.error(chalk.red(`Error: ${error.message}`));
       throw error;
     }
   });
