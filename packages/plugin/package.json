@@ -2,11 +2,13 @@
   "name": "@soliditygpt/hardhat-plugin",
   "version": "0.1.0",
   "description": "AI-powered test generator for Hardhat 3",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     }
   },
