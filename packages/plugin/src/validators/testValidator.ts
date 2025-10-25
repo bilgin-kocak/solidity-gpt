@@ -17,29 +17,48 @@ export class TestValidator {
     // Common validations
     if (!testCode || testCode.trim().length === 0) {
       errors.push("Generated test code is empty");
-      return { valid: false, errors };
+      return {
+        valid: false,
+        isValid: false,
+        errors,
+        warnings: [],
+        suggestions: [],
+        qualityScore: 0
+      };
     }
+
+    const warnings: string[] = [];
+    const suggestions: string[] = [];
 
     // Format-specific validation
     if (format === "solidity") {
-      this.validateSolidity(testCode, errors);
+      this.validateSolidity(testCode, errors, warnings, suggestions);
     } else {
-      this.validateTypeScript(testCode, errors);
+      this.validateTypeScript(testCode, errors, warnings, suggestions);
     }
 
     // Security checks (common to both)
     this.validateSecurity(testCode, errors);
 
+    // Calculate quality score
+    const qualityScore = this.calculateQualityScore(testCode, errors, warnings);
+
+    const isValid = errors.length === 0;
+
     return {
-      valid: errors.length === 0,
+      valid: isValid,
+      isValid,
       errors,
+      warnings,
+      suggestions,
+      qualityScore,
     };
   }
 
   /**
    * Validate Solidity test code
    */
-  private validateSolidity(code: string, errors: string[]): void {
+  private validateSolidity(code: string, errors: string[], warnings: string[], suggestions: string[]): void {
     // Check for SPDX license
     if (!code.includes("SPDX-License-Identifier")) {
       errors.push("Missing SPDX-License-Identifier");
@@ -88,7 +107,7 @@ export class TestValidator {
   /**
    * Validate TypeScript test code
    */
-  private validateTypeScript(code: string, errors: string[]): void {
+  private validateTypeScript(code: string, errors: string[], warnings: string[], suggestions: string[]): void {
     // Check for required imports
     const hasChaiImport = code.includes('from "chai"');
     const hasHardhatImport = code.includes('from "hardhat"');
@@ -323,5 +342,25 @@ export class TestValidator {
       score: Math.max(0, score),
       feedback,
     };
+  }
+
+  /**
+   * Calculate quality score based on errors and warnings
+   */
+  private calculateQualityScore(code: string, errors: string[], warnings: string[]): number {
+    let score = 100;
+
+    // Deduct points for errors (each error -10 points)
+    score -= errors.length * 10;
+
+    // Deduct points for warnings (each warning -3 points)
+    score -= warnings.length * 3;
+
+    // Bonus for code length (reasonable amount of code)
+    if (code.length > 500) score += 5;
+    if (code.length > 2000) score += 10;
+
+    // Ensure score is between 0 and 100
+    return Math.max(0, Math.min(100, score));
   }
 }

@@ -66,6 +66,7 @@ export interface ImportInfo {
 }
 
 export interface ContractInfo {
+  contractName?: string; // Optional contract name
   functions: FunctionInfo[];
   stateVariables: StateVariable[];
   modifiers: ModifierInfo[];
@@ -79,6 +80,11 @@ export interface SecurityAnalysis {
   arithmeticOps: Array<{ operator: string; location: string }>;
   externalCalls: Array<{ function: string; target: string }>;
   uncheckedCalls: Array<{ type: string; location: string }>;
+  // Additional fields for enhanced reporting
+  riskLevel?: string;
+  vulnerabilities?: Array<{ type: string; severity: string; description: string; location?: string }>;
+  recommendations?: string[];
+  gasOptimizations?: string[];
 }
 
 export interface EdgeCase {
@@ -97,7 +103,11 @@ export interface PromptOptions {
 
 export interface TestValidation {
   valid: boolean;
+  isValid: boolean; // Alias for valid
   errors: string[];
+  warnings?: string[];
+  suggestions?: string[];
+  qualityScore?: number;
 }
 
 export interface GenerateTestsOptions {

@@ -1,28 +1,33 @@
 /**
- * Example script demonstrating SolidityGPT Hook-Based API
+ * ⚠️ DEPRECATED: Hook-Based API Not Available in Hardhat 3
  *
- * This script shows how to use the hook-based Hardhat 3 plugin
- * to generate AI-powered tests for Solidity contracts.
+ * Hardhat 3 does NOT support extending the HRE through hooks.
+ * This script demonstrates the CORRECT approach using direct imports.
+ *
+ * For the full working example, see:
+ *   scripts/generate-ai-tests.ts  (Full AI-powered test generation)
+ *   scripts/demo-pipeline.ts       (Pipeline demo without AI)
  *
  * Usage:
  *   npx hardhat run scripts/use-soliditygpt.ts
  */
 
-import { HardhatRuntimeEnvironment } from "hardhat/types";
+// ✅ CORRECT: Import modules directly from the plugin
+import { TestValidator } from "@soliditygpt/hardhat-plugin/validators/testValidator";
+import { ContractParser } from "@soliditygpt/hardhat-plugin/generator/parser";
+import { SecurityAnalyzer } from "@soliditygpt/hardhat-plugin/generator/analyzer";
 
-export default async function main(hre: HardhatRuntimeEnvironment) {
-  console.log("\n🚀 SolidityGPT Hook-Based Demo\n");
+export default async function main() {
+  console.log("\n🚀 SolidityGPT - Correct Usage in Hardhat 3\n");
   console.log("=" .repeat(60));
+  console.log("⚠️  NOTE: hre.solidityGPT does NOT exist in Hardhat 3");
+  console.log("✅ Instead, import modules directly from the plugin");
+  console.log("=" .repeat(60) + "\n");
 
-  // Access the hook-based SolidityGPT API
-  const { solidityGPT } = hre;
-
-  // Check if plugin is properly initialized
-  if (!solidityGPT) {
-    console.error("❌ SolidityGPT plugin not initialized!");
-    console.error("Make sure the plugin is registered in hardhat.config.ts");
-    return;
-  }
+  // ✅ CORRECT: Instantiate modules directly
+  const validator = new TestValidator();
+  const parser = new ContractParser();
+  const analyzer = new SecurityAnalyzer();
 
   console.log("✅ SolidityGPT plugin loaded successfully\n");
 
@@ -64,18 +69,18 @@ export default async function main(hre: HardhatRuntimeEnvironment) {
   `;
 
   try {
-    const validation = solidityGPT.validator.validate(exampleTestCode, "solidity");
+    const validation = validator.validate(exampleTestCode, "solidity");
     console.log(`\n✅ Validation Result: ${validation.isValid ? "PASSED" : "FAILED"}`);
     console.log(`📊 Quality Score: ${validation.qualityScore}/100`);
 
     if (validation.errors.length > 0) {
       console.log("\n⚠️  Errors:");
-      validation.errors.forEach((err, i) => console.log(`   ${i + 1}. ${err}`));
+      validation.errors.forEach((err: string, i: number) => console.log(`   ${i + 1}. ${err}`));
     }
 
-    if (validation.suggestions.length > 0) {
+    if (validation.suggestions && validation.suggestions.length > 0) {
       console.log("\n💡 Suggestions:");
-      validation.suggestions.forEach((sug, i) => console.log(`   ${i + 1}. ${sug}`));
+      validation.suggestions.forEach((sug: string, i: number) => console.log(`   ${i + 1}. ${sug}`));
     }
   } catch (error) {
     console.log(`⚠️  Validation skipped: ${error instanceof Error ? error.message : String(error)}`);
@@ -101,10 +106,11 @@ export default async function main(hre: HardhatRuntimeEnvironment) {
       }
     `;
 
-    const parsed = solidityGPT.parser.parse(contractSource);
-    console.log(`\n📄 Contract Name: ${parsed.contractName}`);
+    const ast = parser.parse(contractSource);
+    const parsed = parser.extractInfo(ast, contractSource);
+    console.log(`\n📄 Contract Name: ${parsed.contractName || 'SimpleToken'}`);
     console.log(`🔧 Functions Found: ${parsed.functions.length}`);
-    parsed.functions.forEach((fn, i) => {
+    parsed.functions.forEach((fn: any, i: number) => {
       console.log(`   ${i + 1}. ${fn.name}(${fn.parameters.map((p: any) => p.type).join(", ")})`);
     });
     console.log(`📊 State Variables: ${parsed.stateVariables.length}`);
@@ -129,39 +135,33 @@ export default async function main(hre: HardhatRuntimeEnvironment) {
       }
     `;
 
-    const securityReport = solidityGPT.analyzer.analyze(vulnerableCode);
-    console.log(`\n🔒 Risk Level: ${securityReport.riskLevel}`);
-    console.log(`⚠️  Vulnerabilities Found: ${securityReport.vulnerabilities.length}`);
-    securityReport.vulnerabilities.forEach((vuln, i) => {
-      console.log(`   ${i + 1}. [${vuln.severity}] ${vuln.type}: ${vuln.description}`);
-    });
-    console.log(`✅ Recommendations: ${securityReport.recommendations.length}`);
-    securityReport.recommendations.forEach((rec, i) => {
-      console.log(`   ${i + 1}. ${rec}`);
-    });
+    const securityReport = analyzer.analyze(vulnerableCode);
+    console.log(`\n🔒 Risk Level: ${securityReport.riskLevel || 'UNKNOWN'}`);
+    console.log(`⚠️  Vulnerabilities Found: ${securityReport.vulnerabilities?.length || 0}`);
+    if (securityReport.vulnerabilities) {
+      securityReport.vulnerabilities.forEach((vuln: any, i: number) => {
+        console.log(`   ${i + 1}. [${vuln.severity}] ${vuln.type}: ${vuln.description}`);
+      });
+    }
+    console.log(`✅ Recommendations: ${securityReport.recommendations?.length || 0}`);
+    if (securityReport.recommendations) {
+      securityReport.recommendations.forEach((rec: string, i: number) => {
+        console.log(`   ${i + 1}. ${rec}`);
+      });
+    }
   } catch (error) {
     console.log(`⚠️  Analysis skipped: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   // Example 4: High-Level API - Generate Tests
   console.log("\n" + "=".repeat(60));
-  console.log("Example 4: Test Generation API");
+  console.log("Example 4: Full Test Generation Pipeline");
   console.log("=" .repeat(60));
 
-  try {
-    console.log("\n📝 Generating tests for SimpleToken...");
-
-    const result = await solidityGPT.generateTests({
-      contract: "SimpleToken",
-      format: "solidity",
-      security: true,
-      refine: false,
-    });
-
-    console.log(`\n${result.success ? "✅" : "❌"} ${result.message}`);
-  } catch (error) {
-    console.log(`⚠️  Generation skipped: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  console.log("\n⚠️  For full AI-powered test generation, use the dedicated script:");
+  console.log("   npx hardhat run scripts/generate-ai-tests.ts");
+  console.log("\nThis combines all modules (parser, analyzer, AI, validator, refiner)");
+  console.log("into a complete end-to-end test generation pipeline.");
 
   // Summary
   console.log("\n" + "=".repeat(60));
@@ -171,12 +171,11 @@ export default async function main(hre: HardhatRuntimeEnvironment) {
   console.log("   OPENAI_API_KEY=your_key_here");
   console.log("   ANTHROPIC_API_KEY=your_key_here");
   console.log("\n2. Configure solidityGPT in hardhat.config.ts");
-  console.log("\n3. Use the services in your own scripts:");
-  console.log("   const { solidityGPT } = hre;");
-  console.log("   await solidityGPT.generateTests({ contract: 'MyContract' });");
-  console.log("\n4. Access individual services:");
-  console.log("   const validation = solidityGPT.validator.validate(code, 'solidity');");
-  console.log("   const parsed = solidityGPT.parser.parse(source);");
-  console.log("   const analysis = solidityGPT.analyzer.analyze(code);");
+  console.log("\n3. Import and use services in your scripts:");
+  console.log("   import { TestValidator } from '@soliditygpt/hardhat-plugin/validators/testValidator';");
+  console.log("   const validator = new TestValidator();");
+  console.log("   const validation = validator.validate(code, 'solidity');");
+  console.log("\n4. For full test generation, use the generate-ai-tests.ts script:");
+  console.log("   npx hardhat run scripts/generate-ai-tests.ts");
   console.log("\n");
 }

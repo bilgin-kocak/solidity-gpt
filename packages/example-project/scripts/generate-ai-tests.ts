@@ -65,9 +65,9 @@ async function generateTests() {
     const apiConfig = {
       openaiApiKey: process.env.OPENAI_API_KEY,
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-      model: (hre.config as any).solidityGPT?.model || "claude-sonnet-4",
+      model: (hre.config as any).solidityGPT?.model || "claude-sonnet-4-5-20250929", // Claude Sonnet 4.5 (LATEST)
       temperature: (hre.config as any).solidityGPT?.temperature || 0.1,
-      maxTokens: (hre.config as any).solidityGPT?.maxTokens || 4000,
+      maxTokens: (hre.config as any).solidityGPT?.maxTokens || 16000,  // Increased for GPT-5/Claude Sonnet 4.5 longer context
     };
 
     console.log(`   API Keys: OpenAI=${!!apiConfig.openaiApiKey}, Anthropic=${!!apiConfig.anthropicApiKey}`);
@@ -166,7 +166,8 @@ async function generateTests() {
     console.log("🤖 Step 6: Generating tests with AI...");
     console.log("   Calling AI service (this may take 10-30 seconds)...");
 
-    const model = (hre.config as any).solidityGPT?.model || "claude-sonnet-4";
+    const model = (hre.config as any).solidityGPT?.model || "claude-sonnet-4-5-20250929";
+    console.log(`   Using AI model: ${model}`);
     const generatedCode = await aiService.generate(prompt, model as any);
 
     console.log(`   ✅ Generated ${generatedCode.length} characters of test code\n`);
@@ -273,7 +274,7 @@ async function generateTests() {
     console.log("=".repeat(60));
     console.log(`✅ Contract: ${CONFIG.contractName}`);
     console.log(`✅ Parsed: ${parsed.functions.length} functions, ${parsed.stateVariables.length} state variables`);
-    if (CONFIG.security) {
+    if (CONFIG.security && securityReport) {
       console.log(`✅ Security: ${securityReport.vulnerabilities?.length || 0} issues found`);
     }
     console.log(`✅ Generated: ${finalCode.length} characters of test code`);

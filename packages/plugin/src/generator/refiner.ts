@@ -9,9 +9,10 @@ import type { TestValidator } from "../validators/testValidator.js";
 
 export interface RefinementResult {
   success: boolean;
-  iterations: number;
+  iterations: RefinementIteration[]; // Array of iterations, not a count
   finalCode: string;
-  history: RefinementIteration[];
+  finalQualityScore?: number; // Quality score after refinement
+  history?: RefinementIteration[]; // Optional history alias
 }
 
 export interface RefinementIteration {
@@ -21,6 +22,9 @@ export interface RefinementIteration {
   testResult?: TestRunResult;
   errors: string[];
   action: "generated" | "compiled" | "tested" | "refined" | "failed";
+  compiled?: boolean; // Whether it compiled successfully
+  testsPassed?: boolean; // Whether tests passed
+  qualityScore?: number; // Quality score for this iteration
 }
 
 export class TestRefiner {
@@ -104,6 +108,8 @@ export class TestRefiner {
         compilationResult,
         errors: compilationResult.errors,
         action: "compiled",
+        compiled: compilationResult.success,
+        qualityScore: compilationResult.success ? 50 : 0, // Basic score
       });
 
       if (!compilationResult.success) {
@@ -141,6 +147,9 @@ export class TestRefiner {
         testResult,
         errors: testResult.errors.map((e) => e.error),
         action: "tested",
+        compiled: true,
+        testsPassed: testResult.success,
+        qualityScore: testResult.success ? 100 : 75,
       });
 
       if (!testResult.success) {
@@ -175,19 +184,26 @@ export class TestRefiner {
       // Success!
       console.log(`  ✅ All tests passed!`);
 
+      // Get final quality score from last validation
+      const finalValidation = this.validator.validate(currentCode, format);
+
       return {
         success: true,
-        iterations: iteration,
+        iterations: history,
         finalCode: currentCode,
+        finalQualityScore: finalValidation.qualityScore || 100,
         history,
       };
     }
 
     // Ran out of iterations or failed
+    const finalValidation = this.validator.validate(currentCode, format);
+
     return {
       success: false,
-      iterations: iteration,
+      iterations: history,
       finalCode: currentCode,
+      finalQualityScore: finalValidation.qualityScore || 0,
       history,
     };
   }

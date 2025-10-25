@@ -2,24 +2,43 @@
  * Prompt Builder - Constructs optimized prompts for AI test generation
  */
 
-import type { PromptOptions, SecurityAnalysis, FunctionInfo } from "../types.js";
+import type { SecurityAnalysis, FunctionInfo, ContractInfo } from "../types.js";
 
 export class PromptBuilder {
   /**
-   * Build a comprehensive prompt for test generation
+   * Build a comprehensive prompt for test generation (script-friendly signature)
    */
-  build(options: PromptOptions): string {
+  build(
+    contractSource: string,
+    contractInfo: ContractInfo,
+    securityAnalysis: SecurityAnalysis | any,
+    options: { security: boolean; format: "solidity" | "typescript" }
+  ): string {
     const examples = this.getExamples(options.format);
-    const securitySection = options.includeSecurity && options.security
-      ? this.buildSecuritySection(options.security)
+    const securitySection = options.security && securityAnalysis
+      ? this.buildSecuritySection(securityAnalysis)
+      : "";
+
+    const formatInstructions = options.format === "solidity"
+      ? `
+⚠️ CRITICAL: You MUST generate SOLIDITY test code using Foundry framework.
+⚠️ DO NOT generate TypeScript/JavaScript code.
+⚠️ DO NOT use chai, ethers, or Hardhat testing syntax.
+⚠️ ONLY use Solidity with forge-std/Test.sol imports.
+`
       : "";
 
     return `You are an expert Solidity security auditor creating comprehensive tests.
-
+${formatInstructions}
 TARGET CONTRACT:
 \`\`\`solidity
-${options.contract}
+${contractSource}
 \`\`\`
+
+PARSED CONTRACT INFO:
+- Functions: ${contractInfo.functions.length}
+- State Variables: ${contractInfo.stateVariables.length}
+- Events: ${contractInfo.events.length}
 
 ${securitySection}
 
@@ -34,6 +53,8 @@ Generate comprehensive tests covering:
 3. Access control and security concerns
 4. Event emissions
 5. Error conditions with proper revert tests
+
+${options.format === "solidity" ? "⚠️ IMPORTANT: Output ONLY Solidity test code using Foundry (forge-std/Test.sol), NOT TypeScript!" : ""}
 
 Return ONLY the test code, no explanations or markdown.`;
   }
