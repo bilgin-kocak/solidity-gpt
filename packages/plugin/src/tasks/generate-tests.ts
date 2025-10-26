@@ -3,7 +3,6 @@
  */
 
 import { task } from "hardhat/config";
-import type { HardhatRuntimeEnvironment } from "hardhat/types";
 import { ContractParser } from "../generator/parser.js";
 import { SecurityAnalyzer } from "../generator/analyzer.js";
 import { PromptBuilder } from "../generator/promptBuilder.js";
@@ -16,6 +15,8 @@ import ora from "ora";
 import chalk from "chalk";
 import type { GenerateTestsOptions } from "../types.js";
 
+type HardhatRuntimeEnvironment = any;
+
 interface ContractStats {
   name: string;
   functionCount: number;
@@ -26,25 +27,32 @@ interface ContractStats {
   success: boolean;
 }
 
-// TODO: Hardhat 3 doesn't export ArgumentType, so we use Hardhat 2-style API with ts-ignore
-// This works at runtime but has type errors. For now, use scripts/generate-ai-tests.ts instead.
-// @ts-ignore - Hardhat 3 type definitions incomplete
-task("generate-tests", "Generate AI-powered tests for Solidity contracts")
-  // @ts-ignore
-  .addOptionalParam("contract", "Specific contract name to generate tests for")
-  // @ts-ignore
-  .addOptionalParam(
-    "format",
-    "Test format: 'typescript' or 'solidity'",
-    "solidity"
-  )
-  // @ts-ignore
-  .addFlag("security", "Include security-focused tests")
-  // @ts-ignore
-  .addFlag("coverage", "Run coverage after generation")
-  // @ts-ignore
-  .addFlag("refine", "Enable iterative refinement (compile, test, fix)")
-  .setAction(async (taskArgs: GenerateTestsOptions, hre: HardhatRuntimeEnvironment) => {
+// Hardhat 3 task definition
+// Note: Type assertions needed due to incomplete type definitions in Hardhat 3.0.9
+(task("generate-tests", "Generate AI-powered tests for Solidity contracts") as any)
+  .addOption({
+    name: "contract",
+    description: "Specific contract name to generate tests for",
+    defaultValue: "",  // Empty string for optional
+  })
+  .addOption({
+    name: "format",
+    description: "Test format: 'typescript' or 'solidity'",
+    defaultValue: "solidity",
+  })
+  .addFlag({
+    name: "security",
+    description: "Include security-focused tests",
+  })
+  .addFlag({
+    name: "coverage",
+    description: "Run coverage after generation",
+  })
+  .addFlag({
+    name: "refine",
+    description: "Enable iterative refinement (compile, test, fix)",
+  })
+  .setAction(async (taskArgs: any, hre: any) => {
     const startTime = Date.now();
     const contractStats: ContractStats[] = [];
 

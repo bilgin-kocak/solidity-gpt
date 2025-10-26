@@ -31,7 +31,27 @@ export class CompilerHelper {
    */
   async compile(): Promise<CompilationResult> {
     try {
-      await this.hre.run("compile", { quiet: true });
+      // Hardhat 3 uses hre.tasks.run() instead of hre.run()
+      if (this.hre.tasks?.run) {
+        await this.hre.tasks.run("compile", { quiet: true });
+      } else if (this.hre.run) {
+        // Fallback for Hardhat 2 compatibility
+        await this.hre.run("compile", { quiet: true });
+      } else {
+        // When running from scripts, hre doesn't have tasks.run or run
+        // Try using dynamic import and subprocess instead
+        const { execSync } = await import("child_process");
+        try {
+          execSync("npx hardhat compile", {
+            cwd: this.hre.config?.paths?.root || process.cwd(),
+            stdio: "pipe",
+          });
+        } catch (execError: any) {
+          // Parse error output
+          const output = execError.stdout?.toString() || execError.stderr?.toString() || execError.message;
+          throw new Error(output);
+        }
+      }
 
       return {
         success: true,
@@ -63,7 +83,14 @@ export class CompilerHelper {
         args.testFiles = [testFile];
       }
 
-      await this.hre.run("test", args);
+      // Hardhat 3 uses hre.tasks.run() instead of hre.run()
+      if (this.hre.tasks?.run) {
+        await this.hre.tasks.run("test", args);
+      } else if (this.hre.run) {
+        await this.hre.run("test", args);
+      } else {
+        throw new Error("Unable to run test task: hre.tasks.run or hre.run not available");
+      }
 
       // If we get here, tests passed
       return {
@@ -243,7 +270,12 @@ export class CompilerHelper {
    */
   async cleanCache(): Promise<void> {
     try {
-      await this.hre.run("clean");
+      // Hardhat 3 uses hre.tasks.run() instead of hre.run()
+      if (this.hre.tasks?.run) {
+        await this.hre.tasks.run("clean");
+      } else if (this.hre.run) {
+        await this.hre.run("clean");
+      }
     } catch (error) {
       console.warn("Failed to clean cache:", error);
     }

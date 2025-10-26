@@ -5,6 +5,7 @@
  */
 
 import "./type-extensions.js";
+import "./tasks/generate-tests.js"; // Register the generate-tests task
 import type { HardhatHooks, HookContext } from "hardhat/types/hooks";
 import type { HardhatRuntimeEnvironment } from "hardhat/types/hre";
 import type { HardhatUserConfig } from "hardhat/types/config";
